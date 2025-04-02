@@ -1,21 +1,33 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, IconButton, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Grid, Paper } from "@mui/material";
 import { Edit, Delete, Add } from "@mui/icons-material";
+import axios from 'axios'; // Importamos axios
 
-// Datos dummy para los productos
-const initialProductos = [
-  { id: 1, nombre: "DB5 S50", descripcion: "Diesel B5 S50", tipo: "Combustible" },
-  { id: 2, nombre: "CRC 02", descripcion: "Combustible CRC 02", tipo: "Combustible" },
-  { id: 3, nombre: "Gasohol 84", descripcion: "Gasolina y Etanol", tipo: "Gasolina y Etanol" },
-];
+interface Producto {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  tipo: string;
+}
 
 const Producto: React.FC = () => {
-  const [productos, setProductos] = useState(initialProductos);
+  const [productos, setProductos] = useState<Producto[]>([]); // Ahora se espera un array de productos
   const [openDialog, setOpenDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [formData, setFormData] = useState({ id: 0, nombre: "", descripcion: "", tipo: "" });
   const [isEditing, setIsEditing] = useState(false);
   const [productToDelete, setProductToDelete] = useState<number | null>(null);
+
+  // UseEffect para cargar los productos desde el backend
+  useEffect(() => {
+    axios.get('http://localhost:8080/api/productos') // Asegúrate de que esta URL coincida con tu backend
+      .then(response => {
+        setProductos(response.data); // Establecer los productos cargados
+      })
+      .catch(error => {
+        console.error('Hubo un error al obtener los productos:', error);
+      });
+  }, []); // Esto se ejecuta solo una vez, cuando el componente se monta
 
   // Handle open and close of the dialog
   const handleOpenDialog = (productoId: number | null) => {
@@ -46,16 +58,30 @@ const Producto: React.FC = () => {
 
   const handleSave = () => {
     if (isEditing) {
-      setProductos(
-        productos.map((producto) =>
-          producto.id === formData.id ? { ...formData } : producto
-        )
-      );
+      // Update producto
+      axios.put(`http://localhost:8080/api/productos/${formData.id}`, formData)
+        .then(response => {
+          setProductos(
+            productos.map((producto) =>
+              producto.id === formData.id ? { ...formData } : producto
+            )
+          );
+          setOpenDialog(false);
+        })
+        .catch(error => {
+          console.error('Error al actualizar el producto:', error);
+        });
     } else {
-      const newProducto = { ...formData, id: Date.now() };
-      setProductos([...productos, newProducto]);
+      // Create new producto
+      axios.post('http://localhost:8080/api/productos', formData)
+        .then(response => {
+          setProductos([...productos, response.data]);
+          setOpenDialog(false);
+        })
+        .catch(error => {
+          console.error('Error al agregar el producto:', error);
+        });
     }
-    setOpenDialog(false);
   };
 
   const handleOpenDeleteDialog = (id: number) => {
@@ -70,8 +96,16 @@ const Producto: React.FC = () => {
 
   const handleDelete = () => {
     if (productToDelete !== null) {
-      setProductos(productos.filter((p) => p.id !== productToDelete));
-      setOpenDeleteDialog(false);
+      // Verificar que la URL es correcta y que el id es válido
+      axios.delete(`http://localhost:8080/api/productos/${productToDelete}`)
+        .then(() => {
+          // Si la eliminación es exitosa, actualiza el estado
+          setProductos(productos.filter((p) => p.id !== productToDelete));
+          setOpenDeleteDialog(false);
+        })
+        .catch(error => {
+          console.error('Error al eliminar el producto:', error);
+        });
     }
   };
 
