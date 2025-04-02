@@ -19,6 +19,7 @@ import {
   ExpandMore,
   Dashboard,
   Settings,
+  LocalGasStation,
   Logout,
   Person,
   Report,
@@ -38,8 +39,8 @@ const menuItems = [
     icon: <Dashboard />,
     subItems: [
       { name: "Tanques", route: "/gestion/tanques" },
-      { name: "Vehículos", route: "/gestion/vehiculos" },
-      { name: "Conductores", route: "/gestion/conductores" },
+      { name: "Productos", route: "/gestion/productos" },
+      { name: "Cisternas", route: "/gestion/cisternas" },
       { name: "Estaciones", route: "/gestion/estaciones" },
     ],
   },
@@ -59,15 +60,6 @@ const menuItems = [
       { name: "Historial", route: "/alertas/historial" },
     ],
   },
-  {
-    title: "Configuración",
-    icon: <Settings />,
-    subItems: [
-      { name: "Usuarios", route: "/configuracion/usuarios" },
-      { name: "Roles", route: "/configuracion/roles" },
-      { name: "Preferencias", route: "/configuracion/preferencias" },
-    ],
-  },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ open }) => {
@@ -75,7 +67,14 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const navigate = useNavigate();
 
   const toggleMenu = (title: string) => {
-    setOpenMenus((prev) => ({ ...prev, [title]: !prev[title] }));
+    setOpenMenus((prev) => {
+      const newOpenMenus: { [key: string]: boolean } = {};
+      Object.keys(prev).forEach((key) => {
+        newOpenMenus[key] = false; // Cierra todos los menús
+      });
+      newOpenMenus[title] = !prev[title]; // Abre el menú seleccionado
+      return newOpenMenus;
+    });
   };
 
   return (
@@ -135,6 +134,16 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             </Collapse>
           </React.Fragment>
         ))}
+
+        {/* Transportes (opción plana sin desplegable) */}
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => navigate("/operaciones")}>
+            <ListItemIcon>
+              <LocalGasStation />
+            </ListItemIcon>
+            <ListItemText primary="Operaciones" />
+          </ListItemButton>
+        </ListItem>
 
         {/* Transportes (opción plana sin desplegable) */}
         <ListItem disablePadding>

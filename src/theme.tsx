@@ -14,7 +14,7 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: "'Poppins', sans-serif", // Fuente moderna
+    fontFamily: "'Montserrat', sans-serif", // Fuente moderna
     h1: {
       fontFamily: "'Merriweather', serif", // Fuente especial para el header
     },
