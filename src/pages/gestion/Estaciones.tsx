@@ -1,20 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, IconButton, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Grid, Paper } from "@mui/material";
 import { Edit, Delete, Add } from "@mui/icons-material";
+import axios from 'axios';
 
-// Datos dummy para las estaciones
-const initialEstaciones = [
-  { id: 1, nombre: "Carachugo", ubicacion: "Ubicación 1", tipo: "Estación Principal", descripcion: "Descripción de la estación" },
-  { id: 2, nombre: "Nueva Planta", ubicacion: "Ubicación 2", tipo: "Estación Secundaria", descripcion: "Descripción de la planta" },
-];
+// URL del backend (ajústalo según tu configuración)
+const API_URL = "http://localhost:8080/api/estaciones";
 
 const Estaciones: React.FC = () => {
-  const [estaciones, setEstaciones] = useState(initialEstaciones);
+  const [estaciones, setEstaciones] = useState<any[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [formData, setFormData] = useState({ id: 0, nombre: "", ubicacion: "", tipo: "", descripcion: "" });
   const [isEditing, setIsEditing] = useState(false);
   const [estacionToDelete, setEstacionToDelete] = useState<number | null>(null);
+
+  // Fetch estaciones from the backend
+  useEffect(() => {
+    axios.get(API_URL)
+      .then(response => {
+        setEstaciones(response.data);
+      })
+      .catch(error => {
+        console.error("Error fetching estaciones:", error);
+      });
+  }, []);
 
   // Handle open and close of the dialog
   const handleOpenDialog = (estacionId: number | null) => {
@@ -45,16 +54,31 @@ const Estaciones: React.FC = () => {
 
   const handleSave = () => {
     if (isEditing) {
-      setEstaciones(
-        estaciones.map((estacion) =>
-          estacion.id === formData.id ? { ...formData } : estacion
-        )
-      );
+      // Update estacion
+      axios.put(`${API_URL}/${formData.id}`, formData)
+        .then(response => {
+          console.log('Actualizacion correcta', response);
+          setEstaciones(
+            estaciones.map((estacion) =>
+              estacion.id === formData.id ? { ...formData } : estacion
+            )
+          );
+          setOpenDialog(false);
+        })
+        .catch(error => {
+          console.error('Error al actualizar la estación:', error);
+        });
     } else {
-      const newEstacion = { ...formData, id: Date.now() };
-      setEstaciones([...estaciones, newEstacion]);
+      // Create new estacion
+      axios.post(API_URL, formData)
+        .then(response => {
+          setEstaciones([...estaciones, response.data]);
+          setOpenDialog(false);
+        })
+        .catch(error => {
+          console.error('Error al agregar la estación:', error);
+        });
     }
-    setOpenDialog(false);
   };
 
   const handleOpenDeleteDialog = (id: number) => {
@@ -69,8 +93,16 @@ const Estaciones: React.FC = () => {
 
   const handleDelete = () => {
     if (estacionToDelete !== null) {
-      setEstaciones(estaciones.filter((e) => e.id !== estacionToDelete));
-      setOpenDeleteDialog(false);
+      // Delete estacion
+      axios.delete(`${API_URL}/${estacionToDelete}`)
+      .then(response => {
+          console.log('Eliminacion correcta', response);
+          setEstaciones(estaciones.filter((e) => e.id !== estacionToDelete));
+          setOpenDeleteDialog(false);
+        })
+        .catch(error => {
+          console.error('Error al eliminar la estación:', error);
+        });
     }
   };
 

@@ -61,6 +61,7 @@ const Producto: React.FC = () => {
       // Update producto
       axios.put(`http://localhost:8080/api/productos/${formData.id}`, formData)
         .then(response => {
+          console.log('Producto actualizado', response);
           setProductos(
             productos.map((producto) =>
               producto.id === formData.id ? { ...formData } : producto

@@ -1,22 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, IconButton, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Grid, Paper } from "@mui/material";
 import { Edit, Delete, Add } from "@mui/icons-material";
+import axios from "axios";
 
-// Datos dummy para las cisternas
-const initialCisternas = [
-  { id: 1, placa: "AXI-740", descripcion: "Cisterna de Flota", tipo: "Flota", fecha_fabricacion: "2022-01-01" },
-  { id: 2, placa: "AXK-841", descripcion: "Cisterna de Flota", tipo: "Flota", fecha_fabricacion: "2022-02-01" },
-  { id: 3, placa: "AXI-782", descripcion: "Cisterna de Flota", tipo: "Flota", fecha_fabricacion: "2023-01-26" },
-  { id: 4, placa: "T0Q-818", descripcion: "Cisterna de Flota", tipo: "Flota", fecha_fabricacion: "2022-06-12" },
-];
+// URL del backend
+const BASE_URL = "http://localhost:8080/api/cisternas";
 
 const Cisternas: React.FC = () => {
-  const [cisternas, setCisternas] = useState(initialCisternas);
+  const [cisternas, setCisternas] = useState<any[]>([]); // Cambié el tipo de estado
   const [openDialog, setOpenDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [formData, setFormData] = useState({ id: 0, placa: "", descripcion: "", tipo: "", fecha_fabricacion: "" });
   const [isEditing, setIsEditing] = useState(false);
   const [cisternaToDelete, setCisternaToDelete] = useState<number | null>(null);
+
+  // Obtener los datos de cisternas al cargar el componente
+  useEffect(() => {
+    axios.get(BASE_URL)
+      .then((response) => {
+        setCisternas(response.data);
+      })
+      .catch((error) => {
+        console.error("Error al obtener las cisternas:", error);
+      });
+  }, []);
 
   // Handle open and close of the dialog
   const handleOpenDialog = (cisternaId: number | null) => {
@@ -47,16 +54,31 @@ const Cisternas: React.FC = () => {
 
   const handleSave = () => {
     if (isEditing) {
-      setCisternas(
-        cisternas.map((cisterna) =>
-          cisterna.id === formData.id ? { ...formData } : cisterna
-        )
-      );
+      // Update cisterna
+      axios.put(`${BASE_URL}/${formData.id}`, formData)
+        .then((response) => {
+          console.log('Actualizacion correcta', response);
+          setCisternas(
+            cisternas.map((cisterna) =>
+              cisterna.id === formData.id ? { ...formData } : cisterna
+            )
+          );
+          setOpenDialog(false);
+        })
+        .catch((error) => {
+          console.error("Error al actualizar la cisterna:", error);
+        });
     } else {
-      const newCisterna = { ...formData, id: Date.now() };
-      setCisternas([...cisternas, newCisterna]);
+      // Create new cisterna
+      axios.post(BASE_URL, formData)
+        .then((response) => {
+          setCisternas([...cisternas, response.data]);
+          setOpenDialog(false);
+        })
+        .catch((error) => {
+          console.error("Error al agregar la cisterna:", error);
+        });
     }
-    setOpenDialog(false);
   };
 
   const handleOpenDeleteDialog = (id: number) => {
@@ -71,8 +93,14 @@ const Cisternas: React.FC = () => {
 
   const handleDelete = () => {
     if (cisternaToDelete !== null) {
-      setCisternas(cisternas.filter((c) => c.id !== cisternaToDelete));
-      setOpenDeleteDialog(false);
+      axios.delete(`${BASE_URL}/${cisternaToDelete}`)
+        .then(() => {
+          setCisternas(cisternas.filter((c) => c.id !== cisternaToDelete));
+          setOpenDeleteDialog(false);
+        })
+        .catch((error) => {
+          console.error("Error al eliminar la cisterna:", error);
+        });
     }
   };
 

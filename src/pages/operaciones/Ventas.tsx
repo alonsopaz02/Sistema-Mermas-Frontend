@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -24,39 +24,28 @@ import {
   TablePagination
 } from "@mui/material";
 import { Edit, Delete, Add, Search } from "@mui/icons-material";
+import axios from "axios";
 
-// Datos dummy para las ventas
-const initialVentas = [
-  { id: 1, tanque_id: 1, volumen_vendido: 5000.00, volumen_60: 5100.00, fecha: "2023-05-02 14:00:00", cliente: "Cliente A", descripcion: "Venta de combustible" },
-  { id: 2, tanque_id: 1, volumen_vendido: 3938.15, volumen_60: 3962.17, fecha: "2023-01-01 13:47:15", cliente: "D", descripcion: "Venta interna" },
-  { id: 3, tanque_id: 3, volumen_vendido: 538.13, volumen_60: 541.25, fecha: "2023-01-01 10:02:17", cliente: "B", descripcion: "Venta de combustible" },
-  { id: 4, tanque_id: 1, volumen_vendido: 1248.73, volumen_60: 1257.10, fecha: "2023-01-02 10:17:51", cliente: "E", descripcion: "Venta de combustible" },
-  { id: 5, tanque_id: 2, volumen_vendido: 12526.48, volumen_60: 12610.41, fecha: "2023-01-02 11:56:58", cliente: "D", descripcion: "Acción como proveedor" },
-  { id: 6, tanque_id: 3, volumen_vendido: 1200.22, volumen_60: 1207.06, fecha: "2023-01-02 12:21:30", cliente: "A", descripcion: "Venta interna" },
-  { id: 7, tanque_id: 1, volumen_vendido: 5673.76, volumen_60: 5711.77, fecha: "2023-01-03 15:00:04", cliente: "B", descripcion: "Venta interna" },
-  { id: 8, tanque_id: 3, volumen_vendido: 6283.24, volumen_60: 6321.57, fecha: "2023-01-03 15:02:22", cliente: "C", descripcion: "Acción como proveedor" },
-  { id: 9, tanque_id: 2, volumen_vendido: 3956.05, volumen_60: 3984.14, fecha: "2023-01-04 10:23:37", cliente: "D", descripcion: "Venta de combustible" },
-  { id: 10, tanque_id: 3, volumen_vendido: 12612.20, volumen_60: 12684.09, fecha: "2023-01-04 12:14:51", cliente: "A", descripcion: "Venta de combustible" },
-  { id: 11, tanque_id: 5, volumen_vendido: 196.44, volumen_60: 197.19, fecha: "2023-01-04 15:11:39", cliente: "D", descripcion: "Venta interna" }
-];
+// URL base del API
+const BASE_URL = "http://localhost:8080/api";
 
 const Ventas: React.FC = () => {
-  const [ventas, setVentas] = useState(initialVentas);
+  const [ventas, setVentas] = useState<any[]>([]);
+  const [tanques, setTanques] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<any[]>([]);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [formData, setFormData] = useState({
     id: 0,
     tanque_id: 0,
-    volumen_vendido: 0,
-    volumen_60: 0,
+    volumenVendido: 0,
+    volumen60: 0,
     fecha: "",
     cliente: "",
     descripcion: ""
   });
   const [isEditing, setIsEditing] = useState(false);
   const [ventaToDelete, setVentaToDelete] = useState<number | null>(null);
-
-  // Filtros
   const [clienteFilter, setClienteFilter] = useState("");
   const [tanqueFilter, setTanqueFilter] = useState("");
   const [fechaInicioFilter, setFechaInicioFilter] = useState("");
@@ -65,13 +54,37 @@ const Ventas: React.FC = () => {
   // Paginación
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [filteredVentas, setFilteredVentas] = useState(initialVentas);
+  const [filteredVentas, setFilteredVentas] = useState<any[]>([]);
 
-  // Handle search button click
+  // Fetch data on load
+  useEffect(() => {
+    // Fetch ventas data
+    axios.get(`${BASE_URL}/ventas`)
+      .then(response => {
+        setVentas(response.data);
+        setFilteredVentas(response.data);
+      })
+      .catch(error => console.error("Error fetching ventas:", error));
+
+    // Fetch tanques data
+    axios.get(`${BASE_URL}/tanques`)
+      .then(response => {
+        setTanques(response.data);
+      })
+      .catch(error => console.error("Error fetching tanques:", error));
+
+    // Fetch distinct clientes (this could be an endpoint that returns all distinct clients)
+    axios.get(`${BASE_URL}/ventas/clientes`)
+      .then(response => {
+        setClientes(response.data);
+      })
+      .catch(error => console.error("Error fetching clientes:", error));
+  }, []);
+
   const handleSearch = () => {
-    const filtered = initialVentas.filter((venta) => {
+    const filtered = ventas.filter((venta) => {
       const clienteMatch = venta.cliente.toLowerCase().includes(clienteFilter.toLowerCase());
-      const tanqueMatch = tanqueFilter ? venta.tanque_id.toString() === tanqueFilter : true;
+      const tanqueMatch = tanqueFilter ? venta.tanque.id.toString() === tanqueFilter : true;
       const fechaMatch =
         (fechaInicioFilter ? new Date(venta.fecha) >= new Date(fechaInicioFilter) : true) &&
         (fechaFinFilter ? new Date(venta.fecha) <= new Date(fechaFinFilter) : true);
@@ -85,15 +98,18 @@ const Ventas: React.FC = () => {
     if (ventaId !== null) {
       const ventaToEdit = ventas.find((v) => v.id === ventaId);
       if (ventaToEdit) {
-        setFormData(ventaToEdit);
+        setFormData({
+          ...ventaToEdit,
+          tanque_id: ventaToEdit.tanque.id,
+        });
         setIsEditing(true);
       }
     } else {
       setFormData({
         id: 0,
         tanque_id: 0,
-        volumen_vendido: 0,
-        volumen_60: 0,
+        volumenVendido: 0,
+        volumen60: 0,
         fecha: "",
         cliente: "",
         descripcion: ""
@@ -117,16 +133,22 @@ const Ventas: React.FC = () => {
 
   const handleSave = () => {
     if (isEditing) {
-      setVentas(
-        ventas.map((venta) =>
-          venta.id === formData.id ? { ...formData } : venta
-        )
-      );
+      // Update venta
+      axios.put(`${BASE_URL}/ventas/${formData.id}`, formData)
+        .then(response => {
+          setVentas(ventas.map((venta) => venta.id === formData.id ? { ...formData } : venta));
+          setOpenDialog(false);
+        })
+        .catch(error => console.error('Error updating venta:', error));
     } else {
-      const newVenta = { ...formData, id: Date.now() };
-      setVentas([...ventas, newVenta]);
+      // Create new venta
+      axios.post(`${BASE_URL}/ventas`, formData)
+        .then(response => {
+          setVentas([...ventas, response.data]);
+          setOpenDialog(false);
+        })
+        .catch(error => console.error('Error adding venta:', error));
     }
-    setOpenDialog(false);
   };
 
   const handleOpenDeleteDialog = (id: number) => {
@@ -141,8 +163,12 @@ const Ventas: React.FC = () => {
 
   const handleDelete = () => {
     if (ventaToDelete !== null) {
-      setVentas(ventas.filter((v) => v.id !== ventaToDelete));
-      setOpenDeleteDialog(false);
+      axios.delete(`${BASE_URL}/ventas/${ventaToDelete}`)
+        .then(response => {
+          setVentas(ventas.filter((v) => v.id !== ventaToDelete));
+          setOpenDeleteDialog(false);
+        })
+        .catch(error => console.error('Error deleting venta:', error));
     }
   };
 
@@ -179,10 +205,11 @@ const Ventas: React.FC = () => {
               onChange={(e) => setTanqueFilter(e.target.value)}
             >
               <MenuItem value="">Todos</MenuItem>
-              <MenuItem value="1">Tanque 1</MenuItem>
-              <MenuItem value="2">Tanque 2</MenuItem>
-              <MenuItem value="3">Tanque 3</MenuItem>
-              <MenuItem value="5">Tanque 5</MenuItem>
+              {tanques.map((tanque) => (
+                <MenuItem key={tanque.id} value={tanque.id}>
+                  {`Tanque ${tanque.codigo}`}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Grid>
@@ -234,9 +261,9 @@ const Ventas: React.FC = () => {
         Agregar Venta
       </Button>
 
-      {/* Tabla */}
-      <TableContainer component={Paper} sx={{ maxHeight: 550 }}>
-        <Table stickyHeader sx={{ minWidth: 650 }} aria-label="ventas table">
+      {/* Tabla de Ventas */}
+      <TableContainer component={Paper}>
+        <Table sx={{ minWidth: 650 }} aria-label="ventas table">
           <TableHead>
             <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
               <TableCell sx={{ fontWeight: "bold" }}>Tanque</TableCell>
@@ -251,9 +278,9 @@ const Ventas: React.FC = () => {
           <TableBody>
             {filteredVentas.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((venta) => (
               <TableRow key={venta.id}>
-                <TableCell>{`Tanque ${venta.tanque_id}`}</TableCell>
-                <TableCell>{venta.volumen_vendido}</TableCell>
-                <TableCell>{venta.volumen_60}</TableCell>
+                <TableCell>{`Tanque ${venta.tanque.codigo}`}</TableCell>
+                <TableCell>{venta.volumenVendido}</TableCell>
+                <TableCell>{venta.volumen60}</TableCell>
                 <TableCell>{venta.cliente}</TableCell>
                 <TableCell>{venta.descripcion}</TableCell>
                 <TableCell>{venta.fecha}</TableCell>
@@ -282,9 +309,9 @@ const Ventas: React.FC = () => {
         onRowsPerPageChange={handleChangeRowsPerPage}
       />
 
-      {/* Dialog para agregar/editar venta */}
+      {/* Dialogo para agregar/editar venta */}
       <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>{isEditing ? "Editar Venta" : "Agregar Venta"}</DialogTitle>
+        <DialogTitle>{formData.id ? "Editar Venta" : "Agregar Venta"}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2}>
             <Grid item xs={12}>
@@ -297,18 +324,19 @@ const Ventas: React.FC = () => {
                 select
                 SelectProps={{ native: true }}
               >
-                <option value={1}>Tanque 1</option>
-                <option value={2}>Tanque 2</option>
-                <option value={3}>Tanque 3</option>
-                <option value={5}>Tanque 5</option>
+                {tanques.map((tanque) => (
+                  <option key={tanque.id} value={tanque.id}>
+                    {`Tanque ${tanque.codigo}`}
+                  </option>
+                ))}
               </TextField>
             </Grid>
             <Grid item xs={12}>
               <TextField
                 label="Volumen Vendido"
                 fullWidth
-                name="volumen_vendido"
-                value={formData.volumen_vendido}
+                name="volumenVendido"
+                value={formData.volumenVendido}
                 onChange={handleChange}
               />
             </Grid>
@@ -316,8 +344,8 @@ const Ventas: React.FC = () => {
               <TextField
                 label="Volumen 60"
                 fullWidth
-                name="volumen_60"
-                value={formData.volumen_60}
+                name="volumen60"
+                value={formData.volumen60}
                 onChange={handleChange}
               />
             </Grid>
@@ -351,28 +379,24 @@ const Ventas: React.FC = () => {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={handleCloseDialog}
-            color="secondary"
-            sx={{
-              backgroundColor: "#f44336",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#d32f2f" },
-            }}
-          >
-            Cancelar
+          <Button onClick={handleCloseDialog} color="secondary">Cancelar</Button>
+          <Button onClick={handleSave} color="primary">
+            {formData.id ? "Guardar Cambios" : "Agregar"}
           </Button>
-          <Button
-            onClick={handleSave}
-            color="primary"
-            sx={{
-              backgroundColor: "#4caf50",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#388e3c" },
-            }}
-          >
-            {isEditing ? "Guardar cambios" : "Agregar"}
-          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirm Delete Dialog */}
+      <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
+        <DialogTitle>Confirmar Eliminación</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1">
+            ¿Estás seguro de que deseas eliminar esta venta? Esta acción no se puede deshacer.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} color="secondary">Cancelar</Button>
+          <Button onClick={handleDelete} color="primary">Eliminar</Button>
         </DialogActions>
       </Dialog>
     </Box>

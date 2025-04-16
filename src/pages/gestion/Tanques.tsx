@@ -1,90 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, IconButton, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Grid, Paper } from "@mui/material";
 import { Edit, Delete, Add } from "@mui/icons-material";
+import axios from "axios";
 
-// Datos dummy para las estaciones y productos (relaciones)
-const estaciones = [
-  { id: 1, nombre: "Carachugo" },
-  { id: 2, nombre: "Nueva Planta" },
-];
+// URL base del API
+const BASE_URL = "http://localhost:8080/api";
 
-const productos = [
-  { id: 1, nombre: "Diesel B5 S50" },
-  { id: 2, nombre: "Gasohol 84" },
-  { id: 3, nombre: "Combustible CRC 02" },
-];
-
-// Datos dummy para los tanques
-const initialTanques = [
-  {
-    id: 3,
-    codigo: "101",
-    estacion_id: 2,
-    producto_id: 1,
-    capacidad_litros: 30000.00,
-    volumen_actual: 24000.00,
-    volumen_60: 24300.00,
-    temperatura_media: "",
-    porcentaje_ocupacion: "",
-    estado: "Inactivo",
-    ultima_actualizacion: "2023-05-01 08:00:00",
-  },
-  {
-    id: 4,
-    codigo: "102",
-    estacion_id: 2,
-    producto_id: 1,
-    capacidad_litros: 30000.00,
-    volumen_actual: 24000.00,
-    volumen_60: 24300.00,
-    temperatura_media: "",
-    porcentaje_ocupacion: "",
-    estado: "Activo",
-    ultima_actualizacion: "2023-05-01 08:00:00",
-  },
-  {
-    id: 5,
-    codigo: "103",
-    estacion_id: 2,
-    producto_id: 3,
-    capacidad_litros: 30000.00,
-    volumen_actual: 24000.00,
-    volumen_60: 24300.00,
-    temperatura_media: "",
-    porcentaje_ocupacion: "",
-    estado: "Activo",
-    ultima_actualizacion: "2023-05-01 08:00:00",
-  },
-  {
-    id: 1,
-    codigo: "119",
-    estacion_id: 1,
-    producto_id: 1,
-    capacidad_litros: 20000.00,
-    volumen_actual: 15000.00,
-    volumen_60: 15200.00,
-    temperatura_media: "",
-    porcentaje_ocupacion: "",
-    estado: "Activo",
-    ultima_actualizacion: "2023-05-01 08:00:00",
-  },
-  {
-    id: 2,
-    codigo: "120",
-    estacion_id: 1,
-    producto_id: 1,
-    capacidad_litros: 25000.00,
-    volumen_actual: 20000.00,
-    volumen_60: 20200.00,
-    temperatura_media: "",
-    porcentaje_ocupacion: "",
-    estado: "Activo",
-    ultima_actualizacion: "2023-05-01 08:00:00",
-  },
-];
-
+// Componente principal para gestionar tanques
 const Tanques: React.FC = () => {
-  const [tanques, setTanques] = useState(initialTanques);
+  const [tanques, setTanques] = useState<any[]>([]);
+  const [estaciones, setEstaciones] = useState<any[]>([]);
+  const [productos, setProductos] = useState<any[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [formData, setFormData] = useState({
@@ -92,22 +18,56 @@ const Tanques: React.FC = () => {
     codigo: "",
     estacion_id: 0,
     producto_id: 0,
-    capacidad_litros: 0,
-    volumen_actual: 0,
-    volumen_60: 0,
-    temperatura_media: "",
-    porcentaje_ocupacion: "",
+    capacidadlitros: 0,
+    volumenActual: 0,
+    volumen60: 0,
+    temperaturaMedia: "",
+    porcentajeOcupacion: "",
     estado: "",
-    ultima_actualizacion: "",
+    ultimaActualizacion: "",
   });
   const [isEditing, setIsEditing] = useState(false);
   const [tanqueToDelete, setTanqueToDelete] = useState<number | null>(null);
+
+  // Obtener los datos de los tanques, estaciones y productos al cargar el componente
+  useEffect(() => {
+    // Obtener los tanques
+    axios.get(`${BASE_URL}/tanques`)
+      .then(response => {
+        setTanques(response.data);
+      })
+      .catch(error => {
+        console.error("Error al obtener los tanques", error);
+      });
+
+    // Obtener las estaciones
+    axios.get(`${BASE_URL}/estaciones`)
+      .then(response => {
+        setEstaciones(response.data);
+      })
+      .catch(error => {
+        console.error("Error al obtener las estaciones", error);
+      });
+
+    // Obtener los productos
+    axios.get(`${BASE_URL}/productos`)
+      .then(response => {
+        setProductos(response.data);
+      })
+      .catch(error => {
+        console.error("Error al obtener los productos", error);
+      });
+  }, []);
 
   const handleOpenDialog = (tanqueId: number | null) => {
     if (tanqueId !== null) {
       const tanqueToEdit = tanques.find((t) => t.id === tanqueId);
       if (tanqueToEdit) {
-        setFormData(tanqueToEdit);
+        setFormData({
+          ...tanqueToEdit,
+          estacion_id: tanqueToEdit.estacion.id,  // Extraer ID de la estación
+          producto_id: tanqueToEdit.producto.id,  // Extraer ID del producto
+        });
         setIsEditing(true);
       }
     } else {
@@ -116,13 +76,13 @@ const Tanques: React.FC = () => {
         codigo: "",
         estacion_id: 0,
         producto_id: 0,
-        capacidad_litros: 0,
-        volumen_actual: 0,
-        volumen_60: 0,
-        temperatura_media: "",
-        porcentaje_ocupacion: "",
+        capacidadlitros: 0,
+        volumenActual: 0,
+        volumen60: 0,
+        temperaturaMedia: "",
+        porcentajeOcupacion: "",
         estado: "",
-        ultima_actualizacion: "",
+        ultimaActualizacion: "",
       });
       setIsEditing(false);
     }
@@ -143,16 +103,30 @@ const Tanques: React.FC = () => {
 
   const handleSave = () => {
     if (isEditing) {
-      setTanques(
-        tanques.map((tanque) =>
-          tanque.id === formData.id ? { ...formData } : tanque
-        )
-      );
+      // Actualizar tanque
+      axios.put(`${BASE_URL}/tanques/${formData.id}`, formData)
+        .then(response => {
+          setTanques(
+            tanques.map((tanque) =>
+              tanque.id === formData.id ? { ...formData } : tanque
+            )
+          );
+          setOpenDialog(false);
+        })
+        .catch(error => {
+          console.error('Error al actualizar el tanque:', error);
+        });
     } else {
-      const newTanque = { ...formData, id: Date.now() };
-      setTanques([...tanques, newTanque]);
+      // Crear nuevo tanque
+      axios.post(`${BASE_URL}/tanques`, formData)
+        .then(response => {
+          setTanques([...tanques, response.data]);
+          setOpenDialog(false);
+        })
+        .catch(error => {
+          console.error('Error al agregar el tanque:', error);
+        });
     }
-    setOpenDialog(false);
   };
 
   const handleOpenDeleteDialog = (id: number) => {
@@ -167,8 +141,14 @@ const Tanques: React.FC = () => {
 
   const handleDelete = () => {
     if (tanqueToDelete !== null) {
-      setTanques(tanques.filter((t) => t.id !== tanqueToDelete));
-      setOpenDeleteDialog(false);
+      axios.delete(`${BASE_URL}/tanques/${tanqueToDelete}`)
+        .then(response => {
+          setTanques(tanques.filter((t) => t.id !== tanqueToDelete));
+          setOpenDeleteDialog(false);
+        })
+        .catch(error => {
+          console.error('Error al eliminar el tanque:', error);
+        });
     }
   };
 
@@ -203,26 +183,26 @@ const Tanques: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {tanques.map((tanque) => (
-              <TableRow key={tanque.id} sx={{ '&:hover': { backgroundColor: "#f1f1f1" } }}>
-                <TableCell>{tanque.codigo}</TableCell>
-                <TableCell>{estaciones.find(e => e.id === tanque.estacion_id)?.nombre}</TableCell>
-                <TableCell>{productos.find(p => p.id === tanque.producto_id)?.nombre}</TableCell>
-                <TableCell>{tanque.capacidad_litros}</TableCell>
-                <TableCell>{tanque.volumen_actual}</TableCell>
-                <TableCell>{tanque.volumen_60}</TableCell>
-                <TableCell>{tanque.estado}</TableCell>
-                <TableCell width="150px">
-                  <IconButton onClick={() => handleOpenDialog(tanque.id)}>
-                    <Edit />
-                  </IconButton>
-                  <IconButton onClick={() => handleOpenDeleteDialog(tanque.id)}>
-                    <Delete />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
+  {tanques.map((tanque) => (
+    <TableRow key={tanque.id} sx={{ '&:hover': { backgroundColor: "#f1f1f1" } }}>
+      <TableCell>{tanque.codigo}</TableCell>
+      <TableCell>{tanque.estacion.nombre}</TableCell>
+      <TableCell>{tanque.producto.nombre}</TableCell>
+      <TableCell>{tanque.capacidadLitros?.toFixed(2) ?? 'N/A'}</TableCell> {/* Formatear con dos decimales */}
+      <TableCell>{tanque.volumenActual?.toFixed(2) ?? 'N/A'}</TableCell> {/* Formatear con dos decimales */}
+      <TableCell>{tanque.volumen60?.toFixed(2) ?? 'N/A'}</TableCell> {/* Formatear con dos decimales */}
+      <TableCell>{tanque.estado}</TableCell>
+      <TableCell width="150px">
+        <IconButton onClick={() => handleOpenDialog(tanque.id)}>
+          <Edit />
+        </IconButton>
+        <IconButton onClick={() => handleOpenDeleteDialog(tanque.id)}>
+          <Delete />
+        </IconButton>
+      </TableCell>
+    </TableRow>
+  ))}
+</TableBody>
         </Table>
       </TableContainer>
 
@@ -280,7 +260,7 @@ const Tanques: React.FC = () => {
                 fullWidth
                 name="capacidad_litros"
                 type="number"
-                value={formData.capacidad_litros}
+                value={formData.capacidadlitros}
                 onChange={handleChange}
               />
             </Grid>
@@ -290,7 +270,7 @@ const Tanques: React.FC = () => {
                 fullWidth
                 name="volumen_actual"
                 type="number"
-                value={formData.volumen_actual}
+                value={formData.volumenActual}
                 onChange={handleChange}
               />
             </Grid>
@@ -300,7 +280,7 @@ const Tanques: React.FC = () => {
                 fullWidth
                 name="volumen_60"
                 type="number"
-                value={formData.volumen_60}
+                value={formData.volumen60}
                 onChange={handleChange}
               />
             </Grid>
@@ -319,7 +299,7 @@ const Tanques: React.FC = () => {
                 fullWidth
                 name="ultima_actualizacion"
                 type="datetime-local"
-                value={formData.ultima_actualizacion}
+                value={formData.ultimaActualizacion}
                 onChange={handleChange}
                 InputLabelProps={{
                   shrink: true,
@@ -391,4 +371,4 @@ const Tanques: React.FC = () => {
   );
 };
 
-export default Tanques
+export default Tanques;
