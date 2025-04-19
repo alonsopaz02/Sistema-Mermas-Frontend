@@ -26,7 +26,8 @@ import {
   Notifications,
   Home,
   AccountCircle,
-  LocalShipping, // Icono de Transportes
+  LocalShipping,
+  LocalFireDepartment, // Icono de Transportes
 } from "@mui/icons-material";
 
 interface SidebarProps {
@@ -152,6 +153,15 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
               <LocalShipping />
             </ListItemIcon>
             <ListItemText primary="Transportes" />
+          </ListItemButton>
+        </ListItem>
+
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => navigate("/mermas")}>
+            <ListItemIcon>
+              <LocalFireDepartment />
+            </ListItemIcon>
+            <ListItemText primary="Mermas" />
           </ListItemButton>
         </ListItem>
 

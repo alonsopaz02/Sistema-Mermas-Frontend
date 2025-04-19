@@ -84,15 +84,19 @@ const Ventas: React.FC = () => {
   const handleSearch = () => {
     const filtered = ventas.filter((venta) => {
       const clienteMatch = venta.cliente.toLowerCase().includes(clienteFilter.toLowerCase());
-      const tanqueMatch = tanqueFilter ? venta.tanque.id.toString() === tanqueFilter : true;
+  
+      // Convertir tanto tanque.id como tanqueFilter a números para asegurar que ambos sean del mismo tipo
+      const tanqueMatch = tanqueFilter ? venta.tanque.id === parseInt(tanqueFilter, 10) : true;
+  
       const fechaMatch =
         (fechaInicioFilter ? new Date(venta.fecha) >= new Date(fechaInicioFilter) : true) &&
         (fechaFinFilter ? new Date(venta.fecha) <= new Date(fechaFinFilter) : true);
-
+  
       return clienteMatch && tanqueMatch && fechaMatch;
     });
     setFilteredVentas(filtered);
   };
+  
 
   const handleOpenDialog = (ventaId: number | null) => {
     if (ventaId !== null) {
