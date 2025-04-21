@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -24,71 +24,85 @@ import {
   TablePagination
 } from "@mui/material";
 import { Edit, Delete, Add, Search } from "@mui/icons-material";
+import axios from "axios";
 
-// Datos dummy para las otras operaciones
-const initialOperaciones = [
-  { id: 486, tanque_id: 5, fecha: "2023-11-11 13:00:00", descripcion: "Uso en estacion de emergencia", volumen_observado: -119.98, volumen_60: -119.98 },
-  { id: 259, tanque_id: 5, fecha: "2023-05-31 12:03:00", descripcion: "Ajuste por temperatura", volumen_observado: -119.94, volumen_60: -120.43 },
-  { id: 22, tanque_id: 5, fecha: "2023-05-31 15:53:00", descripcion: "Ajuste por temperatura", volumen_observado: 119.94, volumen_60: 120.43 },
-  { id: 44, tanque_id: 5, fecha: "2023-11-11 14:53:00", descripcion: "Ajuste por temperatura", volumen_observado: 119.98, volumen_60: 119.98 },
-  { id: 43, tanque_id: 4, fecha: "2023-11-11 15:44:00", descripcion: "Ajuste por medición de inventario", volumen_observado: 120.05, volumen_60: 120.55 },
-  { id: 21, tanque_id: 4, fecha: "2023-05-31 11:31:00", descripcion: "Recarga de combustible en estación", volumen_observado: 288.27, volumen_60: 289.68 },
-  { id: 26, tanque_id: 3, fecha: "2023-07-04 10:11:00", descripcion: "Corrección de error en medición de tanque", volumen_observado: 477.33, volumen_60: 480.29 }
-];
+// URL base del API
+const BASE_URL = "http://localhost:8080/api";
 
 const OtrasOperaciones: React.FC = () => {
-  const [operaciones, setOperaciones] = useState(initialOperaciones);
+  const [otrasOperaciones, setOtrasOperaciones] = useState<any[]>([]);
+  const [tanques, setTanques] = useState<any[]>([]);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [formData, setFormData] = useState({
     id: 0,
-    tanque_id: 0,
+    tanqueId: 0,
     fecha: "",
     descripcion: "",
-    volumen_observado: 0,
-    volumen_60: 0
+    volumenObservado: 0,
+    volumen60: 0
   });
   const [isEditing, setIsEditing] = useState(false);
   const [operacionToDelete, setOperacionToDelete] = useState<number | null>(null);
-
-  // Filtros
   const [tanqueFilter, setTanqueFilter] = useState("");
+  const [descripcionFilter, setDescripcionFilter] = useState("");
   const [fechaInicioFilter, setFechaInicioFilter] = useState("");
   const [fechaFinFilter, setFechaFinFilter] = useState("");
 
   // Paginación
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [filteredOperaciones, setFilteredOperaciones] = useState(initialOperaciones);
+  const [filteredOtrasOperaciones, setFilteredOtrasOperaciones] = useState<any[]>([]);
 
-  // Handle search button click
+  // Fetch data on load
+  useEffect(() => {
+    // Fetch otras operaciones data
+    axios.get(`${BASE_URL}/otras-operaciones`)
+      .then(response => {
+        setOtrasOperaciones(response.data);
+        setFilteredOtrasOperaciones(response.data);
+      })
+      .catch(error => console.error("Error fetching otras operaciones:", error));
+
+    // Fetch tanques data
+    axios.get(`${BASE_URL}/tanques`)
+      .then(response => {
+        setTanques(response.data);
+      })
+      .catch(error => console.error("Error fetching tanques:", error));
+  }, []);
+
   const handleSearch = () => {
-    const filtered = initialOperaciones.filter((operacion) => {
-      const tanqueMatch = tanqueFilter ? operacion.tanque_id.toString() === tanqueFilter : true;
+    const filtered = otrasOperaciones.filter((operacion) => {
+      const tanqueMatch = tanqueFilter ? operacion.tanque.id === parseInt(tanqueFilter, 10) : true;
+      const descripcionMatch = descripcionFilter ? operacion.descripcion.toLowerCase().includes(descripcionFilter.toLowerCase()) : true;
       const fechaMatch =
         (fechaInicioFilter ? new Date(operacion.fecha) >= new Date(fechaInicioFilter) : true) &&
         (fechaFinFilter ? new Date(operacion.fecha) <= new Date(fechaFinFilter) : true);
 
-      return tanqueMatch && fechaMatch;
+      return tanqueMatch && descripcionMatch && fechaMatch;
     });
-    setFilteredOperaciones(filtered);
+    setFilteredOtrasOperaciones(filtered);
   };
 
   const handleOpenDialog = (operacionId: number | null) => {
     if (operacionId !== null) {
-      const operacionToEdit = operaciones.find((o) => o.id === operacionId);
+      const operacionToEdit = otrasOperaciones.find((o) => o.id === operacionId);
       if (operacionToEdit) {
-        setFormData(operacionToEdit);
+        setFormData({
+          ...operacionToEdit,
+          tanqueId: operacionToEdit.tanque.id, // Asegúrate de que tanqueId se asigne correctamente
+        });
         setIsEditing(true);
       }
     } else {
       setFormData({
         id: 0,
-        tanque_id: 0,
+        tanqueId: 0,
         fecha: "",
         descripcion: "",
-        volumen_observado: 0,
-        volumen_60: 0
+        volumenObservado: 0,
+        volumen60: 0
       });
       setIsEditing(false);
     }
@@ -109,16 +123,22 @@ const OtrasOperaciones: React.FC = () => {
 
   const handleSave = () => {
     if (isEditing) {
-      setOperaciones(
-        operaciones.map((operacion) =>
-          operacion.id === formData.id ? { ...formData } : operacion
-        )
-      );
+      // Update operación
+      axios.put(`${BASE_URL}/otras-operaciones/${formData.id}`, formData)
+        .then(response => {
+          setOtrasOperaciones(otrasOperaciones.map((operacion) => operacion.id === formData.id ? { ...formData } : operacion));
+          setOpenDialog(false);
+        })
+        .catch(error => console.error('Error updating operación:', error));
     } else {
-      const newOperacion = { ...formData, id: Date.now() };
-      setOperaciones([...operaciones, newOperacion]);
+      // Create new operación
+      axios.post(`${BASE_URL}/otras-operaciones`, formData)
+        .then(response => {
+          setOtrasOperaciones([...otrasOperaciones, response.data]);
+          setOpenDialog(false);
+        })
+        .catch(error => console.error('Error adding operación:', error));
     }
-    setOpenDialog(false);
   };
 
   const handleOpenDeleteDialog = (id: number) => {
@@ -133,8 +153,12 @@ const OtrasOperaciones: React.FC = () => {
 
   const handleDelete = () => {
     if (operacionToDelete !== null) {
-      setOperaciones(operaciones.filter((o) => o.id !== operacionToDelete));
-      setOpenDeleteDialog(false);
+      axios.delete(`${BASE_URL}/otras-operaciones/${operacionToDelete}`)
+        .then(response => {
+          setOtrasOperaciones(otrasOperaciones.filter((o) => o.id !== operacionToDelete));
+          setOpenDeleteDialog(false);
+        })
+        .catch(error => console.error('Error deleting operación:', error));
     }
   };
 
@@ -156,6 +180,14 @@ const OtrasOperaciones: React.FC = () => {
       {/* Filtros */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={3}>
+          <TextField
+            label="Motivo de Operación"
+            fullWidth
+            value={descripcionFilter}
+            onChange={(e) => setDescripcionFilter(e.target.value)}
+          />
+        </Grid>
+        <Grid item xs={12} sm={3}>
           <FormControl fullWidth>
             <InputLabel>Tanque</InputLabel>
             <Select
@@ -163,9 +195,11 @@ const OtrasOperaciones: React.FC = () => {
               onChange={(e) => setTanqueFilter(e.target.value)}
             >
               <MenuItem value="">Todos</MenuItem>
-              <MenuItem value="3">Tanque 3</MenuItem>
-              <MenuItem value="4">Tanque 4</MenuItem>
-              <MenuItem value="5">Tanque 5</MenuItem>
+              {tanques.map((tanque) => (
+                <MenuItem key={tanque.id} value={tanque.id}>
+                  {`Tanque ${tanque.codigo} - ${tanque.estacion.nombre}`}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Grid>
@@ -214,12 +248,12 @@ const OtrasOperaciones: React.FC = () => {
         sx={{ mb: 3 }}
         onClick={() => setOpenDialog(true)}
       >
-        Agregar Operación
+        Agregar Otras Operación
       </Button>
 
-      {/* Tabla */}
-      <TableContainer component={Paper} sx={{ maxHeight: 550 }}>
-        <Table stickyHeader sx={{ minWidth: 650 }} aria-label="otras operaciones table">
+      {/* Tabla de Operaciones */}
+      <TableContainer component={Paper}>
+        <Table sx={{ minWidth: 650 }} aria-label="otras operaciones table">
           <TableHead>
             <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
               <TableCell sx={{ fontWeight: "bold" }}>Tanque</TableCell>
@@ -231,13 +265,13 @@ const OtrasOperaciones: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredOperaciones.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((operacion) => (
+            {filteredOtrasOperaciones.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((operacion) => (
               <TableRow key={operacion.id}>
-                <TableCell>{operacion.tanque_id}</TableCell>
+                <TableCell>{`${operacion.tanque.codigo}`}</TableCell>
                 <TableCell>{operacion.fecha}</TableCell>
                 <TableCell>{operacion.descripcion}</TableCell>
-                <TableCell>{operacion.volumen_observado}</TableCell>
-                <TableCell>{operacion.volumen_60}</TableCell>
+                <TableCell>{operacion.volumenObservado}</TableCell>
+                <TableCell>{operacion.volumen60}</TableCell>
                 <TableCell width="150px">
                   <IconButton onClick={() => handleOpenDialog(operacion.id)}>
                     <Edit />
@@ -256,45 +290,34 @@ const OtrasOperaciones: React.FC = () => {
       <TablePagination
         rowsPerPageOptions={[5, 10, 25]}
         component="div"
-        count={filteredOperaciones.length}
+        count={filteredOtrasOperaciones.length}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}
         onRowsPerPageChange={handleChangeRowsPerPage}
       />
 
-      {/* Dialog para agregar/editar operación */}
+      {/* Dialogo para agregar/editar operación */}
       <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>{isEditing ? "Editar Operación" : "Agregar Operación"}</DialogTitle>
+        <DialogTitle>{formData.id ? "Editar Otras Operación" : "Agregar Otras Operación"}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <TextField
                 label="Tanque"
                 fullWidth
-                name="tanque_id"
-                value={formData.tanque_id}
+                name="tanqueId"
+                value={formData.tanqueId}
                 onChange={handleChange}
                 select
                 SelectProps={{ native: true }}
               >
-                <option value={3}>Tanque 3</option>
-                <option value={4}>Tanque 4</option>
-                <option value={5}>Tanque 5</option>
+                {tanques.map((tanque) => (
+                  <option key={tanque.id} value={tanque.id}>
+                    {`${tanque.id} - Tanque ${tanque.codigo}`}
+                  </option>
+                ))}
               </TextField>
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Fecha"
-                fullWidth
-                name="fecha"
-                type="datetime-local"
-                value={formData.fecha}
-                onChange={handleChange}
-                InputLabelProps={{
-                  shrink: true,
-                }}
-              />
             </Grid>
             <Grid item xs={12}>
               <TextField
@@ -309,47 +332,54 @@ const OtrasOperaciones: React.FC = () => {
               <TextField
                 label="Volumen Observado"
                 fullWidth
-                name="volumen_observado"
-                value={formData.volumen_observado}
+                name="volumenObservado"
+                value={formData.volumenObservado}
                 onChange={handleChange}
-                type="number"
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
                 label="Volumen 60"
                 fullWidth
-                name="volumen_60"
-                value={formData.volumen_60}
+                name="volumen60"
+                value={formData.volumen60}
                 onChange={handleChange}
-                type="number"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Fecha"
+                fullWidth
+                name="fecha"
+                value={formData.fecha}
+                onChange={handleChange}
+                type="datetime-local"
+                InputLabelProps={{
+                  shrink: true,
+                }}
               />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={handleCloseDialog}
-            color="secondary"
-            sx={{
-              backgroundColor: "#f44336",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#d32f2f" },
-            }}
-          >
-            Cancelar
+          <Button onClick={handleCloseDialog} color="secondary">Cancelar</Button>
+          <Button onClick={handleSave} color="primary">
+            {formData.id ? "Guardar Cambios" : "Agregar"}
           </Button>
-          <Button
-            onClick={handleSave}
-            color="primary"
-            sx={{
-              backgroundColor: "#4caf50",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#388e3c" },
-            }}
-          >
-            {isEditing ? "Guardar cambios" : "Agregar"}
-          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirm Delete Dialog */}
+      <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
+        <DialogTitle>Confirmar Eliminación</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1">
+            ¿Estás seguro de que deseas eliminar esta operación? Esta acción no se puede deshacer.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} color="secondary">Cancelar</Button>
+          <Button onClick={handleDelete} color="primary">Eliminar</Button>
         </DialogActions>
       </Dialog>
     </Box>

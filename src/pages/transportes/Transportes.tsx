@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -24,89 +24,118 @@ import {
   TablePagination,
   Card,
   CardContent,
-  CardHeader,
-  Divider,
-  LinearProgress
+  CardHeader
 } from "@mui/material";
-import { Edit, Delete, Add, Search, ArrowUpward, ArrowDownward } from "@mui/icons-material";
+import { Edit, Delete, Add, Search } from "@mui/icons-material";
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import axios from "axios";
 
 // Registro de las operaciones que hacen la gráfica
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
-// Datos dummy para transportes
-const initialTransportes = [
-  { id: 1, fecha: "2023-01-01 13:56:00", cisterna_id: 2, temperatura_carga: 45, temperatura_descarga: 46, volumen_cargado: 29600, volumen_cargado_60: 29442.8, comentario: "aaa" },
-  { id: 2, fecha: "2023-01-02 13:20:00", cisterna_id: 1, temperatura_carga: 47, temperatura_descarga: 49, volumen_cargado: 30000, volumen_cargado_60: 29842.1, comentario: "bbbb" },
-  { id: 3, fecha: "2023-01-03 11:26:00", cisterna_id: 1, temperatura_carga: 50, temperatura_descarga: 43, volumen_cargado: 19900, volumen_cargado_60: 19789.6, comentario: "cccc" },
-  { id: 4, fecha: "2023-01-04 12:57:00", cisterna_id: 4, temperatura_carga: 45, temperatura_descarga: 46, volumen_cargado: 19800, volumen_cargado_60: 19689.7, comentario: "ddd" },
-  { id: 5, fecha: "2023-01-05 13:23:00", cisterna_id: 1, temperatura_carga: 48, temperatura_descarga: 48, volumen_cargado: 29600, volumen_cargado_60: 29448.3, comentario: "eeee" },
-  { id: 6, fecha: "2023-01-05 13:46:00", cisterna_id: 4, temperatura_carga: 44, temperatura_descarga: 48, volumen_cargado: 9800, volumen_cargado_60: 9751.49, comentario: "fffff" },
-  { id: 7, fecha: "2023-01-06 11:01:00", cisterna_id: 1, temperatura_carga: 50, temperatura_descarga: 50, volumen_cargado: 9800, volumen_cargado_60: 9753.84, comentario: "gggg" },
-  { id: 8, fecha: "2023-01-06 13:00:00", cisterna_id: 1, temperatura_carga: 47, temperatura_descarga: 48, volumen_cargado: 20000, volumen_cargado_60: 19913.9, comentario: "hhhh" },
-  { id: 9, fecha: "2023-01-07 13:16:00", cisterna_id: 2, temperatura_carga: 45, temperatura_descarga: 45, volumen_cargado: 29800, volumen_cargado_60: 29661.6, comentario: "iiiiii" },
-  { id: 10, fecha: "2023-01-07 11:44:00", cisterna_id: 2, temperatura_carga: 47, temperatura_descarga: 44, volumen_cargado: 29700, volumen_cargado_60: 29559.8, comentario: "jjjjj" }
-];
+const BASE_URL = "http://localhost:8080/api";  // URL base de tu API
 
 const Transportes: React.FC = () => {
-  const [transportes, setTransportes] = useState(initialTransportes);
+  const [transportes, setTransportes] = useState<any[]>([]);
+  const [cisternas, setCisternas] = useState<any[]>([]);
+  const [mesesData, setMesesData] = useState<any[]>([]);
+
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [formData, setFormData] = useState({
     id: 0,
     fecha: "",
-    cisterna_id: 0,
-    temperatura_carga: 0,
-    temperatura_descarga: 0,
-    volumen_cargado: 0,
-    volumen_cargado_60: 0,
+    cisternaId: 0,
+    temperaturaCarga: 0,
+    temperaturaDescarga: 0,
+    volumenCargado: 0,
+    volumenCargado60: 0,
     comentario: ""
   });
   const [isEditing, setIsEditing] = useState(false);
   const [transporteToDelete, setTransporteToDelete] = useState<number | null>(null);
-
-  const [cisternas] = useState([
-    { id: 1, placa: "ABC123" },
-    { id: 2, placa: "XYZ456" },
-    { id: 3, placa: "LMN789" },
-    { id: 4, placa: "QRS012" },
-  ]);
-
-  // Filtros
   const [fechaInicioFilter, setFechaInicioFilter] = useState("");
   const [fechaFinFilter, setFechaFinFilter] = useState("");
   const [transporteFilter, setTransporteFilter] = useState("");
+  const [filteredTransportes, setFilteredTransportes] = useState<any[]>([]);
 
   // Paginación
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  // Fetch data on load
+  useEffect(() => {
+    // Obtener transportes
+    axios.get(`${BASE_URL}/transportes`)
+      .then(response => {
+        setTransportes(response.data)
+        setFilteredTransportes(response.data);
+      })
+      .catch(error => console.error("Error fetching transportes:", error));
+
+    // Obtener cisternas
+    axios.get(`${BASE_URL}/cisternas`)
+      .then(response => {
+        setCisternas(response.data);
+      })
+      .catch(error => console.error("Error fetching cisternas:", error));
+
+    // Obtener los datos por mes
+    axios.get(`${BASE_URL}/transportes/meses`)
+      .then(response => {
+        setMesesData(response.data);
+      })
+      .catch(error => console.error("Error fetching meses data:", error));
+  }, []);
+
+  const handleSearch = () => {
+    const filtered = transportes.filter((transporte) => {
+      // Filtro por cisterna
+      const cisternaMatch = transporteFilter ? transporte.cisterna.id === parseInt(transporteFilter, 10) : true;
+
+      // Filtro por fecha (inicio y fin)
+      const fechaMatch =
+        (fechaInicioFilter ? new Date(transporte.fecha) >= new Date(fechaInicioFilter) : true) &&
+        (fechaFinFilter ? new Date(transporte.fecha) <= new Date(fechaFinFilter) : true);
+
+      return cisternaMatch && fechaMatch;
+    });
+
+    setFilteredTransportes(filtered);  // Actualizar el estado con los resultados filtrados
+  };
 
   // Manejador de cambios para los campos de formulario
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({
       ...prevData,
-      [name!]: value,
+      [name!]: value,  // Asegúrate de que 'name' no sea undefined
     }));
   };
+
 
   const handleOpenDialog = (transporteId: number | null) => {
     if (transporteId !== null) {
       const transporteToEdit = transportes.find((t) => t.id === transporteId);
       if (transporteToEdit) {
-        setFormData(transporteToEdit);
+
+        setFormData({
+          ...transporteToEdit,
+          cisternaId: transporteToEdit.cisterna.id, // Asegúrate de que cisternaId se asigne correctamente
+        });
+
         setIsEditing(true);
       }
     } else {
       setFormData({
         id: 0,
         fecha: "",
-        cisterna_id: 0,
-        temperatura_carga: 0,
-        temperatura_descarga: 0,
-        volumen_cargado: 0,
-        volumen_cargado_60: 0,
+        cisternaId: 0,
+        temperaturaCarga: 0,
+        temperaturaDescarga: 0,
+        volumenCargado: 0,
+        volumenCargado60: 0,
         comentario: ""
       });
       setIsEditing(false);
@@ -120,17 +149,36 @@ const Transportes: React.FC = () => {
 
   const handleSave = () => {
     if (isEditing) {
-      setTransportes(
-        transportes.map((transporte) =>
-          transporte.id === formData.id ? { ...formData } : transporte
-        )
-      );
+      // Si estamos editando, realizamos un PUT para actualizar el transporte
+      axios.put(`${BASE_URL}/transportes/${formData.id}`, formData)
+        .then(response => {
+          // Actualizamos el estado con el transporte modificado
+          setTransportes(
+            transportes.map((transporte) =>
+              transporte.id === formData.id ? { ...response.data } : transporte
+            )
+          );
+          setOpenDialog(false);
+        })
+        .catch(error => {
+          console.error('Error updating transporte:', error);
+          alert("Error al actualizar el transporte");
+        });
     } else {
-      const newTransporte = { ...formData, id: Date.now() };
-      setTransportes([...transportes, newTransporte]);
+      // Si estamos agregando, realizamos un POST para crear un nuevo transporte
+      axios.post(`${BASE_URL}/transportes`, formData)
+        .then(response => {
+          // Añadimos el nuevo transporte a la lista
+          setTransportes([...transportes, response.data]);
+          setOpenDialog(false);
+        })
+        .catch(error => {
+          console.error('Error adding transporte:', error);
+          alert("Error al agregar el transporte");
+        });
     }
-    setOpenDialog(false);
   };
+  
 
   const handleOpenDeleteDialog = (id: number) => {
     setTransporteToDelete(id);
@@ -144,12 +192,17 @@ const Transportes: React.FC = () => {
 
   const handleDelete = () => {
     if (transporteToDelete !== null) {
-      setTransportes(transportes.filter((t) => t.id !== transporteToDelete));
-      setOpenDeleteDialog(false);
+      axios.delete(`${BASE_URL}/transportes/${transporteToDelete}`)
+        .then(response => {
+          console.log('Delete response:', response);
+          setTransportes(transportes.filter((o) => o.id !== transporteToDelete));
+          setOpenDeleteDialog(false);
+        })
+        .catch(error => console.error('Error deleting operación:', error));
     }
   };
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 
@@ -158,42 +211,29 @@ const Transportes: React.FC = () => {
     setPage(0);
   };
 
-  // Lógica de búsqueda para los filtros
-  const handleSearch = () => {
-    let filteredTransportes = initialTransportes;
 
-    if (fechaInicioFilter) {
-      filteredTransportes = filteredTransportes.filter((t) =>
-        new Date(t.fecha) >= new Date(fechaInicioFilter)
-      );
-    }
 
-    if (fechaFinFilter) {
-      filteredTransportes = filteredTransportes.filter((t) =>
-        new Date(t.fecha) <= new Date(fechaFinFilter)
-      );
-    }
-
-    if (transporteFilter) {
-      filteredTransportes = filteredTransportes.filter(
-        (t) => t.cisterna_id === Number(transporteFilter)
-      );
-    }
-
-    setTransportes(filteredTransportes);
-  };
-
+  // Datos del gráfico
   const chartData = {
-    labels: ["2023-01-01", "2023-01-02", "2023-01-03", "2023-01-04", "2023-01-05", "2023-01-06", "2023-01-07"],
+    labels: mesesData.map((mes: any) => mes[0]),  // Año-Mes
     datasets: [
       {
         label: "Transportes Realizados",
-        data: [1, 2, 1, 1, 2, 3, 1],
+        data: mesesData.map((mes: any) => mes[1]), // Número de transportes
         borderColor: "rgba(75,192,192,1)",
         borderWidth: 1,
         fill: false,
       },
     ],
+  };
+
+  const chartOptions = {
+    scales: {
+      y: {
+        min: 0,  // Configura el valor mínimo en 0
+        max: 60,  // Configura el valor máximo en 100
+      },
+    },
   };
 
   return (
@@ -283,12 +323,12 @@ const Transportes: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {transportes.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((transporte) => (
+                {filteredTransportes.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((transporte) => (
                   <TableRow key={transporte.id}>
                     <TableCell>{transporte.fecha}</TableCell>
-                    <TableCell>{cisternas.find(cisterna => cisterna.id === transporte.cisterna_id)?.placa}</TableCell>
-                    <TableCell>{transporte.volumen_cargado}</TableCell>
-                    <TableCell>{transporte.temperatura_carga}</TableCell>
+                    <TableCell>{transporte.cisterna.placa}</TableCell>
+                    <TableCell>{transporte.volumenCargado}</TableCell>
+                    <TableCell>{transporte.temperaturaCarga}</TableCell>
                     <TableCell>{transporte.comentario}</TableCell>
                     <TableCell width="150px">
                       <IconButton onClick={() => handleOpenDialog(transporte.id)}>
@@ -308,7 +348,7 @@ const Transportes: React.FC = () => {
           <TablePagination
             rowsPerPageOptions={[5, 10, 25]}
             component="div"
-            count={transportes.length}
+            count={filteredTransportes.length}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}
@@ -347,7 +387,7 @@ const Transportes: React.FC = () => {
                   <Typography variant="h6" sx={{ mb: 2 }}>
                     Variación en la cantidad de transportes realizados
                   </Typography>
-                  <Line data={chartData} />
+                  <Line data={chartData} options={chartOptions}/>
                 </CardContent>
               </Card>
             </Grid>
@@ -355,80 +395,89 @@ const Transportes: React.FC = () => {
         </Grid>
       </Grid>
 
-      {/* Dialog para agregar/editar transporte */}
       <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>{isEditing ? "Editar Transporte" : "Agregar Transporte"}</DialogTitle>
+        <DialogTitle>{formData.id ? "Editar Transporte" : "Agregar Transporte"}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2}>
+            {/* Campo de fecha */}
             <Grid item xs={12}>
               <TextField
                 label="Fecha"
                 fullWidth
                 name="fecha"
-                type="datetime-local"
                 value={formData.fecha}
                 onChange={handleChange}
+                type="datetime-local"
                 InputLabelProps={{
                   shrink: true,
                 }}
               />
             </Grid>
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Cisterna</InputLabel>
-                <Select
-                  value={formData.cisterna_id}
-                  onChange={handleChange}
-                  name="cisterna_id"
-                >
-                  {cisternas.map((cisterna) => (
-                    <MenuItem key={cisterna.id} value={cisterna.id}>
-                      {cisterna.placa}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+
+            {/* Campo de cisterna */}
             <Grid item xs={12}>
               <TextField
-                label="Temperatura Carga"
+                label="Cisterna"
                 fullWidth
-                name="temperatura_carga"
-                value={formData.temperatura_carga}
+                name="cisternaId"
+                value={formData.cisternaId}
                 onChange={handleChange}
-                type="number"
-              />
+                select
+                SelectProps={{ native: true }}
+              >
+                {cisternas.map((cisterna) => (
+                  <option key={cisterna.id} value={cisterna.id}>
+                    {`${cisterna.id} - Placa ${cisterna.placa}`}
+                  </option>
+                ))}
+              </TextField>
             </Grid>
+
+            {/* Campo de temperatura de carga */}
             <Grid item xs={12}>
               <TextField
-                label="Temperatura Descarga"
+                label="Temperatura de Carga"
                 fullWidth
-                name="temperatura_descarga"
-                value={formData.temperatura_descarga}
+                name="temperaturaCarga"
+                value={formData.temperaturaCarga}
                 onChange={handleChange}
-                type="number"
               />
             </Grid>
+
+            {/* Campo de temperatura de descarga */}
+            <Grid item xs={12}>
+              <TextField
+                label="Temperatura de Descarga"
+                fullWidth
+                name="temperaturaDescarga"
+                value={formData.temperaturaDescarga}
+                onChange={handleChange}
+              />
+            </Grid>
+
+            {/* Campo de volumen cargado */}
             <Grid item xs={12}>
               <TextField
                 label="Volumen Cargado"
                 fullWidth
-                name="volumen_cargado"
-                value={formData.volumen_cargado}
+                name="volumenCargado"
+                value={formData.volumenCargado}
                 onChange={handleChange}
-                type="number"
               />
             </Grid>
+
+            {/* Campo de volumen 60 */}
             <Grid item xs={12}>
               <TextField
                 label="Volumen 60"
                 fullWidth
-                name="volumen_cargado_60"
-                value={formData.volumen_cargado_60}
+                name="volumenCargado60"
+                value={formData.volumenCargado60}
                 onChange={handleChange}
-                type="number"
               />
             </Grid>
+
+            {/* Campo de comentario */}
             <Grid item xs={12}>
               <TextField
                 label="Comentario"
@@ -441,65 +490,34 @@ const Transportes: React.FC = () => {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={handleCloseDialog}
-            color="secondary"
-            sx={{
-              backgroundColor: "#f44336",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#d32f2f" },
-            }}
-          >
+          <Button onClick={handleCloseDialog} color="secondary">
             Cancelar
           </Button>
-          <Button
-            onClick={handleSave}
-            color="primary"
-            sx={{
-              backgroundColor: "#4caf50",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#388e3c" },
-            }}
-          >
-            {isEditing ? "Guardar cambios" : "Agregar"}
+          <Button onClick={handleSave} color="primary">
+            {formData.id ? "Guardar Cambios" : "Agregar"}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Dialog de confirmación de eliminación */}
+      {/* Confirmar eliminación */}
       <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
-        <DialogTitle>Confirmar eliminación</DialogTitle>
+        <DialogTitle>Confirmar Eliminación</DialogTitle>
         <DialogContent>
           <Typography variant="body1">
-            ¿Estás seguro de que deseas eliminar este transporte?
+            ¿Estás seguro de que deseas eliminar este transporte? Esta acción no se puede deshacer.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={handleCloseDeleteDialog}
-            color="secondary"
-            sx={{
-              backgroundColor: "#f44336",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#d32f2f" },
-            }}
-          >
+          <Button onClick={handleCloseDeleteDialog} color="secondary">
             Cancelar
           </Button>
-          <Button
-            onClick={handleDelete}
-            color="primary"
-            sx={{
-              backgroundColor: "#4caf50",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#388e3c" },
-            }}
-          >
+          <Button onClick={handleDelete} color="primary">
             Eliminar
           </Button>
         </DialogActions>
       </Dialog>
-      
+
+
     </Box>
   );
 };
